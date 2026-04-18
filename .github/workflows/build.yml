@@ -1,0 +1,62 @@
+name: Build Standoff2 Cheat
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          echo "$HOME/theos/bin" >> $GITHUB_PATH
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+
+      - name: Install ldid and optool
+        run: brew install ldid optool
+
+      - name: Compile tweak (в корне)
+        run: |
+          # Theos ищет Makefile в текущей директории
+          make package
+          # После сборки dylib появится в .theos/obj/debug/ИМЯ_ТВИКА.dylib
+          # Имя берётся из Makefile (TWEAK_NAME)
+
+      - name: Extract dylib
+        run: |
+          # Если TWEAK_NAME = Standoff2Cheat
+          cp .theos/obj/debug/Standoff2Cheat.dylib ./Standoff2Cheat.dylib
+
+      - name: Unpack IPA (лежит в корне)
+        run: |
+          mkdir Payload
+          unzip Standoff2_clean.ipa -d Payload
+
+      - name: Inject dylib
+        run: |
+          APP_PATH=$(find Payload -name "*.app" -type d | head -1)
+          cp Standoff2Cheat.dylib "$APP_PATH/"
+          optool install -c load -p "@executable_path/Standoff2Cheat.dylib" -t "$APP_PATH/Standoff2"
+
+      - name: Codesign
+        run: |
+          APP_PATH=$(find Payload -name "*.app" -type d | head -1)
+          ldid -Sent.plist "$APP_PATH/Standoff2Cheat.dylib"
+          ldid -Sent.plist "$APP_PATH/Standoff2"
+
+      - name: Repack IPA
+        run: |
+          cd Payload
+          zip -r ../Standoff2_cheated.ipa .
+          cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Standoff2_cheated_ipa
+          path: Standoff2_cheated.ipa
