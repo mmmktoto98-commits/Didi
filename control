@@ -1,0 +1,8 @@
+Package: com.yourname.standoff2cheat
+Name: Standoff2 Cheat
+Version: 1.0
+Architecture: iphoneos-arm
+Description: Full cheat for Standoff2
+Maintainer: YourName
+Author: YourName
+Section: Tweaks
